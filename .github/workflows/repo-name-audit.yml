@@ -1,118 +1,65 @@
-name: Repository Naming Audit
+name: Org Admin Agent
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # Daily at 9am UTC
+    - cron: '0 9 * * 1'  # Weekly Monday 9am UTC
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
-  audit:
+  org-audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Audit repository names
-        uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
         with:
-          github-token: ${{ secrets.ORG_AUDIT_TOKEN }}
-          script: |
-            const NAMING_REGEX = /^(cust|postman|proj|personal)-[a-z0-9]+(-[a-z0-9]+)*$/;
-            const ORG = 'postman-cs';
-            const ISSUE_TITLE = 'Repository name does not match org naming convention';
+          use_bedrock: "true"
+          github_token: ${{ secrets.ORG_AUDIT_TOKEN }}
+          prompt: |
+            You are the org admin agent for the postman-cs GitHub organization.
 
-            // Fetch all repos
-            const repos = await github.paginate(github.rest.repos.listForOrg, {
-              org: ORG,
-              per_page: 100,
-            });
+            Use the GitHub CLI (gh) to list all repositories in the postman-cs org and audit each one against these rules:
 
-            const violations = [];
+            ## 1. Naming Convention
+            All repo names must match: ^(cust|postman|proj|personal)-[a-z0-9]+(-[a-z0-9]+)*$
+            - cust-* for customer-specific engagements
+            - postman-* for external-facing tools and actions
+            - proj-* for internal projects
+            - personal-* for personal repos/explorations
+            - All lowercase, no underscores, no trailing/double hyphens
 
-            for (const repo of repos) {
-              if (repo.archived) continue;
-              if (NAMING_REGEX.test(repo.name)) continue;
+            ## 2. Repository Description
+            Every repo must have a non-empty, professional description. Flag repos with:
+            - Empty descriptions
+            - Placeholder descriptions like "project", "test", or single words
+            - Descriptions containing personal names without context
 
-              // Check if an open issue already exists
-              const existingIssues = await github.rest.issues.listForRepo({
-                owner: ORG,
-                repo: repo.name,
-                state: 'open',
-                labels: 'naming-convention',
-                per_page: 1,
-              });
+            ## 3. README Quality
+            Check if each repo has a README.md. Flag repos missing one entirely.
 
-              if (existingIssues.data.length > 0) {
-                core.info(`Skipping ${repo.name} -- issue already exists`);
-                violations.push({ name: repo.name, issued: false });
-                continue;
-              }
+            ## 4. Visibility Audit
+            Flag any PUBLIC repo that:
+            - Contains customer names in the repo name or description
+            - Has "internal" or "cust" in the name but is public
+            - Exposes internal tooling or methodology
 
-              // Determine expected prefix
-              let suggestion = '';
-              const lower = repo.name.toLowerCase();
-              if (/^cust-/.test(lower) || /^(cust|customer|engagement)/i.test(repo.name)) {
-                suggestion = `cust-${lower.replace(/^cust-/, '')}`;
-              } else if (/^postman-/.test(lower)) {
-                suggestion = lower;
-              } else {
-                suggestion = `proj-${lower}`;
-              }
-              // Sanitize: replace non-alphanumeric (except hyphens) with hyphens, collapse, trim
-              suggestion = suggestion
-                .replace(/[^a-z0-9-]/g, '-')
-                .replace(/-+/g, '-')
-                .replace(/^-|-$/g, '');
+            ## 5. Staleness
+            Flag repos with no commits in the last 6 months as candidates for archival.
 
-              // Create issue
-              try {
-                await github.rest.issues.create({
-                  owner: ORG,
-                  repo: repo.name,
-                  title: ISSUE_TITLE,
-                  labels: ['naming-convention'],
-                  body: [
-                    `This repository's name \`${repo.name}\` does not match the org naming convention.`,
-                    '',
-                    '## Naming Rules',
-                    '',
-                    'All repository names must be **lowercase** and start with one of these prefixes:',
-                    '',
-                    '| Prefix | Use for |',
-                    '|--------|---------|',
-                    '| `cust-` | Customer-specific engagements |',
-                    '| `postman-` | External-facing tools and actions |',
-                    '| `proj-` | Internal projects and tooling |',
-                    '| `personal-` | Personal repos and explorations |',
-                    '',
-                    `**Suggested name:** \`${suggestion}\``,
-                    '',
-                    '## What to do',
-                    '',
-                    '1. Choose the correct prefix for this repo',
-                    '2. Rename via **Settings > General > Repository name**',
-                    '3. Update any CI configs, local clones, or hardcoded references',
-                    '4. Close this issue once renamed',
-                    '',
-                    '*This issue was created automatically by the repo naming audit.*',
-                  ].join('\n'),
-                });
-                core.info(`Created issue on ${repo.name}`);
-                violations.push({ name: repo.name, issued: true });
-              } catch (err) {
-                core.warning(`Failed to create issue on ${repo.name}: ${err.message}`);
-                violations.push({ name: repo.name, issued: false, error: err.message });
-              }
-            }
+            ## Actions
+            For each violation found:
+            - Open a GitHub issue on the repo with the label "org-audit"
+            - Include the specific violation, the rule it breaks, and a suggested fix
+            - Do NOT open duplicate issues -- check for existing open issues with the "org-audit" label first
+            - Be professional and helpful in issue descriptions
 
-            // Summary
-            core.summary.addHeading('Naming Audit Results');
-            if (violations.length === 0) {
-              core.summary.addRaw('All repositories comply with the naming convention.');
-            } else {
-              core.summary.addTable([
-                [{ data: 'Repository', header: true }, { data: 'Issue Created', header: true }],
-                ...violations.map(v => [v.name, v.issued ? 'Yes' : v.error || 'Already exists']),
-              ]);
-            }
-            await core.summary.write();
+            At the end, output a summary table of all violations found.
+          claude_args: "--model us.anthropic.claude-sonnet-4-6-v1:0 --max-turns 100"
+        env:
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.BEDROCK_API_KEY }}
+          AWS_REGION: us-east-1

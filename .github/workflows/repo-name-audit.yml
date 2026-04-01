@@ -6,6 +6,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
+  id-token: write
   contents: write
   pull-requests: write
   issues: write
@@ -13,8 +14,15 @@ permissions:
 jobs:
   org-audit:
     runs-on: ubuntu-latest
+    environment: bedrock-agent
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::780401591112:role/github-actions-bedrock-agent
+          aws-region: us-east-1
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -60,6 +68,3 @@ jobs:
 
             At the end, output a summary table of all violations found.
           claude_args: "--model us.anthropic.claude-sonnet-4-6-v1:0 --max-turns 100"
-        env:
-          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.BEDROCK_API_KEY }}
-          AWS_REGION: us-east-1

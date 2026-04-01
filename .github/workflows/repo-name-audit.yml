@@ -1,0 +1,118 @@
+name: Repository Naming Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9am UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Audit repository names
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ORG_AUDIT_TOKEN }}
+          script: |
+            const NAMING_REGEX = /^(cust|postman|proj|personal)-[a-z0-9]+(-[a-z0-9]+)*$/;
+            const ORG = 'postman-cs';
+            const ISSUE_TITLE = 'Repository name does not match org naming convention';
+
+            // Fetch all repos
+            const repos = await github.paginate(github.rest.repos.listForOrg, {
+              org: ORG,
+              per_page: 100,
+            });
+
+            const violations = [];
+
+            for (const repo of repos) {
+              if (repo.archived) continue;
+              if (NAMING_REGEX.test(repo.name)) continue;
+
+              // Check if an open issue already exists
+              const existingIssues = await github.rest.issues.listForRepo({
+                owner: ORG,
+                repo: repo.name,
+                state: 'open',
+                labels: 'naming-convention',
+                per_page: 1,
+              });
+
+              if (existingIssues.data.length > 0) {
+                core.info(`Skipping ${repo.name} -- issue already exists`);
+                violations.push({ name: repo.name, issued: false });
+                continue;
+              }
+
+              // Determine expected prefix
+              let suggestion = '';
+              const lower = repo.name.toLowerCase();
+              if (/^cust-/.test(lower) || /^(cust|customer|engagement)/i.test(repo.name)) {
+                suggestion = `cust-${lower.replace(/^cust-/, '')}`;
+              } else if (/^postman-/.test(lower)) {
+                suggestion = lower;
+              } else {
+                suggestion = `proj-${lower}`;
+              }
+              // Sanitize: replace non-alphanumeric (except hyphens) with hyphens, collapse, trim
+              suggestion = suggestion
+                .replace(/[^a-z0-9-]/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
+
+              // Create issue
+              try {
+                await github.rest.issues.create({
+                  owner: ORG,
+                  repo: repo.name,
+                  title: ISSUE_TITLE,
+                  labels: ['naming-convention'],
+                  body: [
+                    `This repository's name \`${repo.name}\` does not match the org naming convention.`,
+                    '',
+                    '## Naming Rules',
+                    '',
+                    'All repository names must be **lowercase** and start with one of these prefixes:',
+                    '',
+                    '| Prefix | Use for |',
+                    '|--------|---------|',
+                    '| `cust-` | Customer-specific engagements |',
+                    '| `postman-` | External-facing tools and actions |',
+                    '| `proj-` | Internal projects and tooling |',
+                    '| `personal-` | Personal repos and explorations |',
+                    '',
+                    `**Suggested name:** \`${suggestion}\``,
+                    '',
+                    '## What to do',
+                    '',
+                    '1. Choose the correct prefix for this repo',
+                    '2. Rename via **Settings > General > Repository name**',
+                    '3. Update any CI configs, local clones, or hardcoded references',
+                    '4. Close this issue once renamed',
+                    '',
+                    '*This issue was created automatically by the repo naming audit.*',
+                  ].join('\n'),
+                });
+                core.info(`Created issue on ${repo.name}`);
+                violations.push({ name: repo.name, issued: true });
+              } catch (err) {
+                core.warning(`Failed to create issue on ${repo.name}: ${err.message}`);
+                violations.push({ name: repo.name, issued: false, error: err.message });
+              }
+            }
+
+            // Summary
+            core.summary.addHeading('Naming Audit Results');
+            if (violations.length === 0) {
+              core.summary.addRaw('All repositories comply with the naming convention.');
+            } else {
+              core.summary.addTable([
+                [{ data: 'Repository', header: true }, { data: 'Issue Created', header: true }],
+                ...violations.map(v => [v.name, v.issued ? 'Yes' : v.error || 'Already exists']),
+              ]);
+            }
+            await core.summary.write();

@@ -13,6 +13,13 @@ We build open-source tooling and automation for API lifecycle management, helpin
 | [postman-repo-sync-action](https://github.com/postman-cs/postman-repo-sync-action) | Repo sync, environments, and Bifrost workspace linking |
 | [postman-api-gateway-sync](https://github.com/postman-cs/postman-api-gateway-sync) | Sync OpenAPI specs from AWS API Gateway to Postman Spec Hub |
 
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| [postman-cse-plugins](https://github.com/postman-cs/postman-cse-plugins) | Claude Code plugin with bundled Slack MCP server and CSE engagement intake skill |
+| [kepler](https://github.com/postman-cs/kepler) | Okta WebAuthn/SAML auth proxy and multi-platform session management |
+
 ## Links
 
 - [postman.com](https://www.postman.com)

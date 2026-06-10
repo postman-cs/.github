@@ -36,7 +36,12 @@ postman-smoke-flow-action               curated flow.yaml -> Smoke collection
 3. Call `postman-api-onboarding-action` for the standard path. The composite orchestrates bootstrap, repo sync, and Insights linking in order; the individual actions remain available when you need finer control.
 4. Finish with `postman-smoke-flow-action` to apply a curated `flow.yaml` to the canonical Smoke collection, using the `workspace-id`, `spec-id`, and `smoke-collection-id` outputs from bootstrap.
 
-A working example of the token mint plus composite onboarding lives in [postman-service-account-onboarding-sample](https://github.com/postman-cs/postman-service-account-onboarding-sample).
+## Worked examples
+
+| Repo | What it shows |
+|------|---------------|
+| [postman-compile-time-assertions-demo](https://github.com/postman-cs/postman-compile-time-assertions-demo) | Pre-merge API contract gate built on the actions above: CI builds the service, replays the generated smoke and contract collections against it, and fails the PR on schema drift |
+| [postman-service-account-onboarding-sample](https://github.com/postman-cs/postman-service-account-onboarding-sample) | Minimal workflow wiring the token mint into the composite onboarding action |
 
 ## Links
 

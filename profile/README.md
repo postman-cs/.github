@@ -2,7 +2,7 @@
 
 We build open-source tooling and automation for API lifecycle management, helping enterprise teams onboard, govern, and scale their API programs with Postman.
 
-## GitHub Actions
+## The Postman Enterprise Automation Suite
 
 These actions form an onboarding pipeline that takes a service from an OpenAPI spec to a fully provisioned Postman workspace: spec upload, generated collections, repo-synced artifacts, and API Catalog visibility. Each can also run standalone.
 

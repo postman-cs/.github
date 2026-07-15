@@ -18,6 +18,10 @@ These actions form an onboarding pipeline that takes a service from an OpenAPI s
 
 `postman-api-gateway-sync` is deprecated and archived. Use `postman-aws-spec-discovery-action` instead.
 
+## PR-scoped contract testing
+
+[postman-onboarding-tdd](https://github.com/postman-cs/postman-onboarding-tdd) turns an OpenAPI change in a pull request into a runnable Postman TDD check. For each PR it creates a PR-scoped Spec Hub spec and generated contract collection, runs the collection against your service in CI, and posts a sticky PR comment with a human-readable summary plus compact JSON for coding agents. It complements the onboarding suite: the suite provisions and keeps testing after merge; this gates the change before merge.
+
 ## Suggested sequence
 
 ```mermaid
@@ -51,6 +55,12 @@ The pipeline does not just provision assets; it leaves executable tests behind. 
 |------|---------------|
 | [postman-compile-time-assertions-demo](https://github.com/postman-cs/postman-compile-time-assertions-demo) | Pre-merge API contract gate built on the actions above: CI builds the service, replays the generated smoke and contract collections against it, and fails the PR on schema drift |
 | [postman-service-account-onboarding-sample](https://github.com/postman-cs/postman-service-account-onboarding-sample) | Minimal workflow wiring the token mint into the composite onboarding action |
+
+## Other tools
+
+| Repo | Description |
+|------|-------------|
+| [postman-insights-agent](https://github.com/postman-cs/postman-insights-agent) | See the behavior of your production APIs: discover endpoints and quickly find and fix issues |
 
 ## Links
 

@@ -10,6 +10,8 @@ These actions form an onboarding pipeline that takes a service from an OpenAPI s
 |--------|-------------|
 | [postman-resolve-service-token-action](https://github.com/postman-cs/postman-resolve-service-token-action) | Mint a service-account access token, resolve the team ID, and optionally write both to repo secrets |
 | [postman-aws-spec-discovery-action](https://github.com/postman-cs/postman-aws-spec-discovery-action) | Discover AWS-backed services (API Gateway, AppSync, IaC, etc.) and export their OpenAPI specs |
+| [postman-azure-spec-discovery-action](https://github.com/postman-cs/postman-azure-spec-discovery-action) | Discover Azure-backed services (API Management, API Center, App Service, IaC, etc.) and export their API specs |
+| [postman-gcp-spec-discovery-action](https://github.com/postman-cs/postman-gcp-spec-discovery-action) | Discover GCP-backed services (API Gateway, Cloud Endpoints, Apigee, API Hub, etc.) and export their OpenAPI specs |
 | [postman-api-onboarding-action](https://github.com/postman-cs/postman-api-onboarding-action) | Composite orchestrator: runs bootstrap, repo sync, and Insights linking end to end |
 | [postman-bootstrap-action](https://github.com/postman-cs/postman-bootstrap-action) | Workspace provisioning, spec upload, collection generation, governance, and contract-test injection |
 | [postman-smoke-flow-action](https://github.com/postman-cs/postman-smoke-flow-action) | Apply a curated flow.yaml to the Smoke collection created by bootstrap |
@@ -27,7 +29,7 @@ These actions form an onboarding pipeline that takes a service from an OpenAPI s
 ```mermaid
 flowchart TB
     TOKEN["resolve-service-token<br/>mint access token + team ID"] --> COMP
-    AWS["aws-spec-discovery<br/>optional: export the spec from AWS"] -.->|"spec-url / spec-path"| COMP
+    CLOUD["aws / azure / gcp spec-discovery<br/>optional: export the spec from your cloud"] -.->|"spec-url / spec-path"| COMP
     subgraph COMP["api-onboarding (composite)"]
         B["bootstrap<br/>workspace + spec + collections<br/>+ injected contract tests"] --> RS["repo-sync<br/>artifacts, environments, mocks,<br/>monitors, CI workflow"]
         RS --> INS["insights linking<br/>optional"]
@@ -37,7 +39,7 @@ flowchart TB
 ```
 
 1. Run `postman-resolve-service-token-action` first. It mints the service-account access token and resolves the team ID that the rest of the pipeline consumes, and it can refresh tokens on a schedule.
-2. Add `postman-aws-spec-discovery-action` when the OpenAPI spec lives in AWS (API Gateway, AppSync, IaC exports). Its output feeds the onboarding action's `spec-url` input.
+2. Add the spec-discovery action for your cloud when the spec lives there rather than in the repo: `postman-aws-spec-discovery-action` (API Gateway, AppSync, EventBridge, IaC exports), `postman-azure-spec-discovery-action` (API Management, API Center, App Service, IaC), or `postman-gcp-spec-discovery-action` (API Gateway, Cloud Endpoints, Apigee, API Hub). Their output feeds the onboarding action's `spec-url` input.
 3. Call `postman-api-onboarding-action` for the standard path. The composite orchestrates bootstrap, repo sync, and Insights linking in order; the individual actions remain available when you need finer control.
 4. Finish with `postman-smoke-flow-action` to apply a curated `flow.yaml` to the canonical Smoke collection, using the `workspace-id`, `spec-id`, and `smoke-collection-id` outputs from bootstrap.
 

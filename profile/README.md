@@ -68,3 +68,7 @@ The pipeline does not just provision assets; it leaves executable tests behind. 
 
 - [postman.com](https://www.postman.com)
 - [Postman Learning Center](https://learning.postman.com)
+
+## Repository path policy
+
+Every `postman-cs` repository is covered by an org-wide path policy: pushes that add, change, or rename dot-paths (`.plans/`, `.env`, `.vscode/mcp.json`, ...) or sensitive-by-name files (`*.pem`, `*.key`, `*.tfstate`, ...) are rejected unless the path is on the org allowlist (`.github/`, `.gitignore`, `.postman/`, committed tool configs, ...). Public repositories get the same rule as a required `path-policy` check on pull requests. See [policy/README.md](https://github.com/postman-cs/.github/blob/main/policy/README.md) for the pattern lists, how to request an exception, and how the rulesets are applied.

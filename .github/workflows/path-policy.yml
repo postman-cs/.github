@@ -1,0 +1,52 @@
+name: path-policy
+
+# Layer B of the postman-cs path policy: required on the default branch of every public repository
+# through the org ruleset `path-policy-public`. Source of truth for the patterns is
+# postman-cs/.github/policy/path-policy.patterns.json (checked out below; the target repo is not).
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  path-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pass merge group
+        if: github.event_name == 'merge_group'
+        run: echo "::notice::merge_group event; paths were already checked on the pull request, passing"
+
+      - name: Check out policy source
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: postman-cs/.github
+          ref: main
+          path: policy-src
+          persist-credentials: false
+
+      - name: Collect changed paths
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+        run: |
+          set -euo pipefail
+          if [ "${PR_CHANGED_FILES:-0}" -ge 3000 ]; then
+            echo "::error::pull request reports ${PR_CHANGED_FILES} changed files (>= 3000 API cap); failing closed"
+            exit 1
+          fi
+          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
+            --jq '.[] | {filename, status}' > changed.jsonl
+          echo "changed entries: $(wc -l < changed.jsonl)"
+
+      - name: Evaluate against path-policy.patterns.json
+        if: github.event_name == 'pull_request'
+        run: ruby policy-src/policy/check-paths.rb policy-src/policy/path-policy.patterns.json changed.jsonl

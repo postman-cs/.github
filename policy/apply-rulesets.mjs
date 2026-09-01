@@ -93,6 +93,9 @@ function renderBranch(enforcement, sourceRepoId) {
           require_code_owner_review: false,
           require_last_push_approval: false,
           required_review_thread_resolution: false,
+          require_extra_approval_for_unattributed_changes: false,
+          required_reviewers: [],
+          allowed_merge_methods: ["merge", "squash", "rebase"],
         },
       },
       {
